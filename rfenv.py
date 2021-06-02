@@ -7,14 +7,14 @@ import matplotlib.pyplot as plt
 
 class PhasedArrayEnv(gym.Env):
     def __init__(self):
-        self.elements = 7
+        self.elements = 5
         self.seed()
         self.rng = np.random.RandomState()
         self.rng.seed(1234)
         self.antennas = []
         # gain is unaffected by frequency
         self.phase_fn = lambda x: 1
-        self.ts = np.linspace(0, 0.5*np.pi*1e-10, 50)
+        self.ts = np.linspace(0, 0.5*np.pi*1e-10, 100)
 
         self.waves = [elem.Wave(24e+9, 1, 0, np.array((5, 0)))]
         self.anten = []
@@ -25,8 +25,8 @@ class PhasedArrayEnv(gym.Env):
 
         # Phases of each antenna
         self.action_space = spaces.Box(
-            low = np.array([0.0]*self.elements),
-            high = np.array([2*np.pi]*self.elements),
+            low = np.array([-1]*self.elements),
+            high = np.array([1]*self.elements),
             dtype = np.float32
         )
 
@@ -39,11 +39,20 @@ class PhasedArrayEnv(gym.Env):
         )
     
     def step(self, action):
-        self.phased_array.set_phases(action)
+        # Multiply by pi b/c action space is normalized -1 to 1
+        self.phased_array.set_phases(action * np.pi)
 
         power, obs = self.collect_powers()
+
+        done = False
+        err = self.elements * 2 - power
+        if (err < 0.5):
+            done = True
+            # print("Power converged: done")
+        # else:
+            # print("Power err still", err)
     
-        return obs, power, False, {}
+        return obs, (power - self.elements) / self.elements, done, {}
     
     def collect_powers(self):
         agg, yss = self.phased_array.get_time_series(self.ts)
@@ -73,7 +82,7 @@ class PhasedArrayEnv(gym.Env):
             anten.append(elem.Antenna(np.array((0, i)), rand_phase, self.phase_fn))
         self.anten = anten
         self.phased_array = elem.PhasedArray(self.waves, self.anten)
-        print("Randomized initial phases are", phases)
+        # print("Randomized initial phases are", phases)
 
         _, obs = self.collect_powers()
 
@@ -89,7 +98,7 @@ class PhasedArrayEnv(gym.Env):
         for series in self.yss:
             plt.plot(self.ts, series)
         plt.plot(self.ts, self.agg)
-        plt.pause(1) 
+        plt.pause(0.1) 
 
     def close(self):
         pass

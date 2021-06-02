@@ -35,13 +35,21 @@ def learn():
     # env = gym.make("CartPole-v1")
     env = rfenv.PhasedArrayEnv()
     check_env(env)
-    model = PPO("MlpPolicy", env, verbose=1)
+    model = PPO("MlpPolicy", env, verbose=1, device = "cpu")
 
     model.learn(total_timesteps=10000)
+    model.save("./parl-model.pkl")
+    print("Learning done and model saved.")
+
+def predict():
+    env = rfenv.PhasedArrayEnv()
+    model = PPO.load("./parl-model.pkl", env=env)
 
     for i in range(10):
         obs = env.reset()
-        for i in range(5):
+        print("Scenario", i)
+        input("Press to view")
+        for i in range(100):
             action, _states = model.predict(obs, deterministic=True)
             print(action)
             obs, reward, done, info = env.step(action)
